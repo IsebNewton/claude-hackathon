@@ -1,0 +1,31 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: northwind-backend
+  data:
+    mongodb:
+      uri: ${SPRING_DATA_MONGODB_URI:mongodb://localhost:27017/northwind}
+      auto-index-creation: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
+
+northwind:
+  jwt:
+    # Override in production via JWT_SECRET env var (min 32 bytes for HS256)
+    secret: ${JWT_SECRET:change-me-in-production-please-32bytes-minimum-secret}
+    ttl-minutes: ${JWT_TTL_MINUTES:480}
+  cors:
+    allowed-origin: ${CORS_ALLOWED_ORIGIN:http://localhost:3000}
+
+logging:
+  level:
+    org.springframework.data.mongodb.core.MongoTemplate: INFO

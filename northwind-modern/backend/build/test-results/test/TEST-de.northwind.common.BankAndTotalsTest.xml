@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="de.northwind.common.BankAndTotalsTest" tests="4" skipped="0" failures="0" errors="0" timestamp="2026-06-30T13:24:38" hostname="DE-ADN-BTF5HW3" time="0.024">
+  <properties/>
+  <testcase name="valid German IBAN passes()" classname="de.northwind.common.BankAndTotalsTest" time="0.019"/>
+  <testcase name="invalid IBAN fails()" classname="de.northwind.common.BankAndTotalsTest" time="0.001"/>
+  <testcase name="totals compute net vat and gross()" classname="de.northwind.common.BankAndTotalsTest" time="0.001"/>
+  <testcase name="IBAN with spaces is normalised and accepted()" classname="de.northwind.common.BankAndTotalsTest" time="0.001"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>
