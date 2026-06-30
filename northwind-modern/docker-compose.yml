@@ -4,7 +4,9 @@ services:
     container_name: northwind-mongo
     restart: unless-stopped
     ports:
-      - "27017:27017"
+      # Host 27018 to avoid clashing with a local MongoDB on 27017.
+      # The backend connects over the compose network (mongo:27017) regardless.
+      - "27018:27017"
     volumes:
       - mongo-data:/data/db
     healthcheck:
