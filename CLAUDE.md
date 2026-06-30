@@ -1,101 +1,97 @@
-# BAV Repository — Hackathon: Code Modernization
+# Northwind Logistics — Modernization Project
 
-## Repository-Struktur
+## Hackathon Context
 
-```
-bav/              ← BAV Library (malkusch/bav): PHP-Bibliothek zur Validierung
-                    deutscher Bankkonten gegen Bundesbank-Daten
-                    Bestehender Code — nicht Teil des Hackathon-Monoliths
-
-monolith/         ← Northwind Logistics Legacy App: PHP 5-era Monolith
-                    Hackathon-Ausgangspunkt für alle 9 Modernisierungs-Challenges
-                    Siehe monolith/CLAUDE.md für vollständigen Kontext
-```
+**Scenario:** Code Modernization (Challenge 1 of 5)
+**Goal:** Prove the PHP 5 monolith can be evolved safely using the Strangler Fig pattern — no big-bang rewrite.
+**Active challenges:** The Patient (done), The Stories (done), The Map (next: ADRs + decomposition plan).
 
 ---
 
-## Hackathon: Scenario 1 — Code Modernization
+## Repo Layout
 
-Northwind Logistics läuft auf einem alten PHP-Stack. Die BAV-Library ist als
-Composer-Dependency in den Monolith eingebunden — SEPA-Lastschrift-Validierung
-für Kundenzahlungen.
-
-**Ziel:** Monolith sicher modernisieren ohne Big-Bang-Rewrite.
-**Strategie:** Strangler Fig — schrittweise Extraktion von Services.
-
----
-
-## BAV-Library (bav/)
-
-### Was die Library macht
-- Validiert BLZ + Kontonummer gegen die offizielle Bundesbank-BLZ-Datei
-- 157 Validator-Algorithmen (Verfahren 00–99, A–E) für verschiedene Banken
-- Datenbasis: Bundesbank-Datei (vierteljährlich aktualisiert: März/Juni/September/Dezember)
-
-### Öffentliche API
-```php
-$bav = new \malkusch\bav\BAV();
-$bav->isValidBankAccount($blz, $kto);  // bool
-$bav->isValidBank($blz);               // bool, setzt Context
-$bav->isValidAccount($kto);            // bool, braucht vorherigen isValidBank()-Aufruf
-$bav->isValidBIC($bic);               // bool
-$bav->getMainAgency($blz);            // Agency-Objekt (Name, BIC, etc.)
-```
-
-### Kritischer Global State
-`ConfigurationRegistry` ist ein **statisches Singleton**. Ein Aufruf von
-`ConfigurationRegistry::setConfiguration()` ändert das Verhalten für alle
-nachfolgenden BAV-Instanzen im selben PHP-Prozess.
-
-Im Monolith wird dieser Singleton an **3 Stellen** überschrieben — das ist ein
-dokumentierter Bug. Siehe `monolith/CLAUDE.md` für Details.
-
-### Backends
-| Backend | Klasse | Wann nutzen |
+| Path | Purpose | Own CLAUDE.md |
 |---|---|---|
-| File (Standard) | `FileDataBackendContainer` | Einfach, kein DB nötig |
-| PDO | `PDODataBackendContainer($pdo)` | Wenn DB-Integration gewünscht |
-| Doctrine ORM | `DoctrineBackendContainer($em)` | Wenn Doctrine schon vorhanden |
+| `monolith/` | Legacy PHP 5 application — the starting point | Yes → `monolith/CLAUDE.md` |
+| `monolith/docs/` | Capabilities map, ADRs (to be created) | No |
+| `doc/initial context/` | Hackathon scenario descriptions | No |
+| `doc/stories/` | User stories US-001 through US-008 | No |
+| `services/` | Extracted microservices (to be created) | Each gets its own CLAUDE.md |
+
+For all technical details on the monolith — anti-patterns, known bugs, trigger list, global state — see `monolith/CLAUDE.md`.
 
 ---
 
-## Monolith (monolith/)
+## Business Capabilities (MoSCoW Order)
 
-Siehe `monolith/CLAUDE.md` für vollständigen Kontext, Anti-Patterns, Seams.
+### MUST — Core business, in daily use
 
-**Kurzfassung:**
-- PHP 5-era, `mysql_*`-Funktionen, global `$db`
-- God-Class `Northwind.php` mit 30+ Methoden
-- 5 DB-Trigger mit versteckter Business-Logic
-- BAV 3-fach initialisiert pro Request
+**1. Order Management**
+Full lifecycle of a customer order. Status machine: 1=New → 2=Confirmed → 3=In Progress → 4=Shipped → 5=Complete, 9=Cancelled.
+Known defect: stock is decremented on confirmation (DB trigger) but never restored on cancellation. Manual monthly correction required.
+
+**2. Invoice & Payment**
+SEPA direct debit is the primary payment method. Failures here = no revenue.
+Invoice numbering: `RE-YYYY-NNNNN` via DB sequence (deadlock risk at high volume).
+BAV configuration is overwritten three times per request — validation results are unreliable under race conditions.
+
+**3. Customer Management**
+Master data. FK anchor for orders and invoices. Includes bank details (BLZ + account number).
+
+### SHOULD — Operationally important, not hourly
+
+**4. Delivery & Tracking**
+Carrier status updates via cron. DB trigger `tr_lieferung_zugestellt` sets wrong order status (4 instead of 5). Cron and trigger can overwrite each other.
+
+**5. Article & Inventory**
+Product catalog and stock management. Stock decremented by trigger on order confirmation, no negative-stock guard.
+
+### COULD — Useful but not a blocker
+
+**6. Bank Account Validation**
+Technical capability, no own UI. Underpins payment and customer master data.
+Currently duplicated: old format-only function in `helper.php` and BAV-based `BankValidator` class.
+
+### WON'T — Not reliably deliverable in current state
+
+**7. Unified Error & Audit Logging**
+Three incompatible error strategies in `Northwind.php` (`false`, `die()`, `Exception`). `error_reporting(0)` in config. Errors disappear silently.
 
 ---
 
-## Neue Services (nach Extraktion)
+## Extraction Order (Strangler Fig)
 
-Wenn du einen extrahierten Service anlegst:
+Business priority first, then technical risk. Each extraction must leave the monolith fully functional.
 
-```
-bav/
-├── monolith/                     ← Legacy (unverändert)
-├── bank-validation-service/      ← Beispiel: erster extrahierter Service
-│   ├── CLAUDE.md                 ← Service-eigener Kontext
-│   ├── src/
-│   └── tests/
-└── ...
-```
-
-**Anti-Corruption-Layer-Regel:**
-- Neue Services dürfen `malkusch/bav` direkt referenzieren ✓
-- Neue Services dürfen **NICHT** Klassen aus `monolith/classes/` importieren ✗
-- Der Monolith-Datentypen (z.B. Feldnamen aus `kunden`-Tabelle) dürfen nicht
-  in der öffentlichen API neuer Services erscheinen ✗
+| # | Service | Priority | Key risk |
+|---|---|---|---|
+| 1 | Customer API | MUST | FK in `auftraege` + `rechnungen` |
+| 2 | Order Management Service | MUST | Triggers 2+4 must become explicit app code |
+| 3 | Invoice/Payment Service | MUST | Touches all other domains; trigger 1 + sequence deadlock |
+| 4 | Shipment Tracking | SHOULD | 3-way address denormalization, trigger race condition |
+| 5 | Bank Validation Service | COULD | Lowest technical risk; lowest business priority |
 
 ---
 
-## ADR-Verzeichnis
+## Rules for Claude (Project-Wide)
 
-`monolith/docs/` (noch anzulegen für Challenge 3: The Map):
-- `ADR-001-strangler-fig-bank-validation.md`
+**Never do:**
+- Big-bang rewrite — Strangler Fig only
+- Write to the monolith DB from a new service (or vice versa)
+- Use `mysql_*` or `global $db` in new services
+- Expose monolith DB column names in a new service's public API (anti-corruption layer must exist)
+- Edit `sql/schema.sql` triggers without characterization tests in place first
+
+**Prefer:**
+- Reading `monolith/CLAUDE.md` before touching any monolith code
+- Adding contract tests alongside each extraction (characterization suite must stay green)
+- Explicit application code over hidden DB trigger logic when building new services
+- One seam at a time — the monolith and the extracted service must both be provable from a single test run
+
+---
+
+## ADRs (to be created in `monolith/docs/`)
+
+- `ADR-001-strangler-fig-customer-api.md`
 - `ADR-002-anti-corruption-layer.md`
-- `ADR-003-trigger-explizit-machen.md`
+- `ADR-003-triggers-to-application-code.md`
