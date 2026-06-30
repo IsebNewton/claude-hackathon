@@ -27,6 +27,40 @@ durchgängig dokumentiert (`monolith/CLAUDE.md`, `monolith/classes/CLAUDE.md`):
 - Keine FK-Verflechtung nach außen → ideal für den ersten "Cut".
 - Der Service ist **ohne MySQL lauffähig** (BAV File-Backend) → trivial standalone testbar + in CI.
 
+### Projekt-Ist-Zustand (was WIRKLICH im Repo liegt — Stand jetzt)
+**Vorhanden (nicht neu anlegen):**
+```
+CLAUDE.md                         ← Projekt-Ebene (Root), bereits gepflegt
+ARBEITSPLAN.md                    ← dieser Plan
+bav/                              ← malkusch/bav-Library (Dependency, unverändert)
+doc/initial context/              ← Challenge-Beschreibungen (01-code-modernization.md …)
+.claude/my-plans/monolith-plan.md ← Generierungs-Plan des Monolithen (historisch)
+monolith/
+├── CLAUDE.md                     ← Verzeichnis-Ebene (Monolith-Kontext)
+├── composer.json  config.php  init.php  index.php  helper.php
+├── classes/  CLAUDE.md · Northwind.php · NorthwindDB.php · BankValidator.php
+├── pages/    login, kunden, kunden_edit, artikel, artikel_edit, auftraege,
+│             auftrag_neu, auftrag_detail, lieferungen, lieferung_detail,
+│             rechnungen, rechnung_detail, rechnung_zahlung
+├── includes/ header.php · footer.php · pagination.php
+├── cron/     bav_update.php · mahnlauf.php · update_lieferstatus.php
+├── sql/      schema.sql  (5 Trigger)
+└── tests/    AuftragTest · BankValidatorTest · KundenTest · RechnungTest
+```
+> Die Drei-Ebenen-`CLAUDE.md` (`CLAUDE.md`, `monolith/CLAUDE.md`, `monolith/classes/CLAUDE.md`)
+> und die 4 Characterization-Tests existieren **bereits**. Challenge 2 ("The Patient") ist erledigt.
+
+**Anzulegen (Hackathon-Output — existiert noch NICHT):**
+```
+bank-validation-service/   ← neuer extrahierter Service (Sibling von monolith/)
+monolith/docs/             ← ADR-001/002/003
+stories/                   ← User Stories
+eval/                      ← Scorecard
+agentic/                   ← Scouts (Coordinator + Verdicts)
+.claude/hooks|skills/      ← PreToolUse-Hook + Custom-Skill/Slash-Command
+README.md  presentation.html  RUNBOOK.md  run-tests.sh   ← in Wurzel
+```
+
 ### Wonach bewertet wird (steuert diesen Plan)
 **Claude liest in jedem Fall 3 Dateien — sie sind unser Pitch, NICHT die letzten 10 Minuten:**
 `README.md` (die Story), `presentation.html` (5-Min-Pitch), `CLAUDE.md` (wie wir das Tool angelernt haben).
@@ -75,11 +109,9 @@ durchgängig dokumentiert (`monolith/CLAUDE.md`, `monolith/classes/CLAUDE.md`):
   `isValidBankAccount`, `isValidBIC`, `isValidBank`, `BankValidator`, `validateBankleitzahl`.
   Betroffene Dateien (bereits identifiziert): `classes/BankValidator.php`, `classes/Northwind.php`,
   `helper.php`, `pages/rechnung_zahlung.php`, `pages/kunden_edit.php`, `pages/auftrag_neu.php`.
-- **Repo-Struktur (real, nicht erfinden):**
-  - `monolith/` — der bestehende PHP-Monolith (MySQL) · `bank-validation-service/` — **neuer** Service (Sibling von `monolith/`, ACL-Regel aus Root-`CLAUDE.md`)
-  - `monolith/tests/` — Characterization-Tests (existieren: `AuftragTest`, `BankValidatorTest`, `KundenTest`, `RechnungTest`)
-  - `stories/` — User Stories · `monolith/docs/` — ADRs · `eval/` — Scorecard · `agentic/` — Scouts · `.claude/` — Hook, Skill, Slash-Command
-  - Wurzel: `README.md`, `CLAUDE.md` (existiert, erweitern), `presentation.html`, `RUNBOOK.md`
+- **Repo-Struktur — siehe "Projekt-Ist-Zustand" oben.** Kurz:
+  - *Vorhanden:* `monolith/` (PHP-Monolith, MySQL) inkl. `monolith/tests/` (4 Characterization-Tests) und Drei-Ebenen-`CLAUDE.md`.
+  - *Anzulegen:* `bank-validation-service/` (Sibling, ACL-Regel aus Root-`CLAUDE.md`), `monolith/docs/` (ADRs), `stories/`, `eval/`, `agentic/`, `.claude/hooks|skills`, sowie `README.md` / `presentation.html` / `RUNBOOK.md` / `run-tests.sh` in der Wurzel.
 - **Commit-Disziplin:** oft committen (Commit-History ist Bewertungs-Evidenz).
 - **Doc-Regel:** Wer ein Artefakt fertig hat, schreibt **sofort** 3–5 Sätze in README + eine Slide → kein Doc-Stau am Ende.
 - **ACL-Regel (hart):** Neuer Service darf `malkusch/bav` direkt nutzen, aber **NICHT** aus
