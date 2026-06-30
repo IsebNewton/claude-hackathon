@@ -67,6 +67,30 @@ northwind/
 
 ---
 
+## Current Status
+
+Fortschritt nach Hackathon-Challenges:
+
+| Challenge | Status | Artefakte |
+|---|---|---|
+| **The Patient** — Monolith generieren | ✅ Done | `monolith/` — PHP 5, Gott-Klasse, 5 DB-Trigger, inline SQL |
+| **The Stories** — PM User Stories | ✅ Done | `doc/stories/US-001` bis `US-008` |
+| **The Map** — Architektur-ADRs + Zerlegungsplan | 🔜 Next | `monolith/docs/ADR-*.md` (ausstehend) |
+| **The Pin** — Charakterisierungstests | ⬜ Pending | — |
+| **The Cut** — Ersten Service extrahieren | ⬜ Pending | `services/customer-api/` (geplant) |
+| **The Fence** — Anti-Corruption Layer | ⬜ Pending | — |
+| **The Scorecard** — Eval-Harness | ⬜ Pending | — |
+
+### Nächste Schritte
+
+1. **Architect:** Zielarchitektur ermitteln, Schnitte definieren, ADRs schreiben (`ADR-001` bis `ADR-003`)
+2. **Tester:** Charakterisierungstests gegen den Monolith (Pin) — Verhalten fixieren, bevor irgendjemand anfasst
+3. **Dev:** Customer API extrahieren (erster Schnitt, niedrigstes Risiko) — Stories US-007 + US-008 als Basis
+4. **Dev:** Order Management Service — Stories US-001 bis US-003; Trigger 2+4 werden expliziter App-Code
+5. **Dev:** Invoice/Payment Service — Stories US-004 bis US-006; Trigger 1 + Sequenz-Deadlock lösen
+
+---
+
 ## Modernization Approach
 
 **Pattern:** [Strangler Fig](https://martinfowler.com/bliki/StranglerFigApplication.html) — extract services one seam at a time. The monolith stays running throughout.
