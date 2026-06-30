@@ -34,6 +34,7 @@ beweist. Die Capability-Map und MoSCoW-Priorisierung liegen bereits vor in
    gemacht werden kann — nicht dort, wo das Risiko absolut am niedrigsten ist.
 4. **Wir entfernen keine DB-Trigger und migrieren kein `mysql_*`**, bevor Characterization-Tests
    das Verhalten eingefroren haben (siehe ADR-003).
+5. **Tech-Stack neuer Service:** Kotlin + Spring Boot 3.x + PostgreSQL (eigene Instanz, Gradle Kotlin DSL).
 
 ---
 
@@ -161,8 +162,8 @@ existierende BLZs rutschen durch. → Beim späteren Schnitt von Seam #5 zu bere
    ════════════╪═══════════  Anti-Corruption-Layer (ADR-002, Fence-Hook)
                ▼
    ┌────────────────────────────────────────┐
-   │  services/customer-api/                │  GET  /customers/{id}     (Lesezugriff)
-   │  • eigene Sicht auf Kundenstamm        │  POST /customers          (Anlage)
+   │  services/customer-api/               │  GET  /customers/{id}     (Lesezugriff)
+   │  Kotlin + Spring Boot 3 + PostgreSQL   │  POST /customers          (Anlage)
    │  • KEINE Monolith-Feldnamen in der API │  PUT  /customers/{id}     (Pflege)
    │  • Schreibt NICHT in Monolith-DB       │  ▲ FK kunden_id bleibt physisch im Monolith
    └────────────────────────────────────────┘
@@ -179,7 +180,7 @@ flowchart TD
     KP --> NWK[Northwind Kunden-Methoden = HTTP-Client]
     AP --> NW[Northwind Order/Invoice]
     RP --> NW
-    NWK -.Anti-Corruption-Layer.-> SVC[services/customer-api]
+    NWK -.Anti-Corruption-Layer.-> SVC[services/customer-api\nKotlin + Spring Boot 3 + PostgreSQL]
     NW --> DB[(MySQL: kunden ◀FK auftraege ◀FK rechnungen + 5 Trigger)]
     SVC -. nur Lesezugriff .-> DB
     classDef new fill:#d6f5d6,stroke:#2e7d32;
@@ -190,13 +191,43 @@ flowchart TD
 
 ---
 
+## Extraktionsphasen (Customer API)
+
+### Phase 1: Charakterisierungstests (The Pin)
+- `tests/CustomerCharacterizationTest.php` pinnt aktuelles Verhalten — inklusive Bugs
+- Abgedeckt: `getKunde`, `getKundenListe`, `speichereKunde`, `loescheKunde`, `sucheKunden`
+- Tests müssen während der gesamten Extraktion grün bleiben
+
+### Phase 2: Customer API aufbauen
+- Kotlin + Spring Boot 3 Service mit eigener PostgreSQL-DB
+- REST-Endpunkte: `GET /customers/{id}`, `GET /customers`, `POST /customers`, `PUT /customers/{id}`, `DELETE /customers/{id}`
+- Feldnamen nach ADR-002 (kein Monolith-Spaltenname in der API)
+- Contract Tests grün vor Phase 3
+
+### Phase 3: Expand — Lesezugriffe umstellen
+- Monolith: Lesezugriffe auf `kunden` über HTTP-Client-Adapter auf Customer API umstellen
+- Schreibzugriffe noch auf Monolith-DB (Source of Truth bleibt Monolith-DB)
+- Monolith-DB → Customer-API-DB: Batch-Sync (nächtlich) oder CDC
+
+### Phase 4: Contract — Schreibzugriffe umstellen
+- Monolith schreibt über HTTP-Adapter auf Customer API
+- Customer-API-DB wird neue Source of Truth
+- Monolith-DB `kunden`-Tabelle: Read-Only-Modus
+
+### Phase 5: Cutover
+- Monolith greift nicht mehr direkt auf `kunden`-Tabelle zu
+- Charakterisierungstests + Contract Tests grün auf demselben Commit
+- Monolith-seitiger Customer-Code in `Northwind.php` stilllegen
+
+---
+
 ## Was wir bewusst NICHT tun
 
 - ❌ **Kein Big-Bang-Rewrite.** Der Monolith bleibt während des gesamten Schnitts live.
 - ❌ **Kein Cross-DB-Write.** Der Customer-Service schreibt nicht in die Monolith-DB und umgekehrt
   (Projektregel Root-`CLAUDE.md`). FK-Spalten bleiben physisch im Monolithen.
 - ❌ **Kein `mysql_*` / `global $db`** im neuen Service.
-- ❌ **Keine Monolith-Feldnamen** (`bankleitzahl`, `kontonummer`) in der öffentlichen Service-API
+- ❌ **Keine Monolith-Feldnamen** (`blz`, `kontonummer`) in der öffentlichen Service-API
   (durchgesetzt per Fence-Hook, ADR-002).
 - ❌ **Keine Trigger entfernen / kein `mysql_*` → PDO** in diesem Schritt — erst nach
   Characterization-Tests (ADR-003).

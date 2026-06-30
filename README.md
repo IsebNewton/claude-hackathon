@@ -38,6 +38,17 @@ Ordered by business criticality (see `monolith/docs/capabilities.md` for full Mo
 | Tests | PHPUnit 4.x |
 | Background jobs | Cron (`cron/mahnlauf.php`, `cron/update_lieferstatus.php`) |
 
+## Tech Stack (Zielarchitektur)
+
+| Component | Technology |
+|---|---|
+| Backend Services | Kotlin + Spring Boot 3.x |
+| Build | Gradle (Kotlin DSL) |
+| Datenbank | PostgreSQL — jeder Service eigene DB |
+| API-Stil | REST/JSON |
+| Frontend | Vue.js 3 |
+| Tests | JUnit 5 + Testcontainers |
+
 ---
 
 ## Repo Structure
@@ -95,17 +106,21 @@ Fortschritt nach Hackathon-Challenges:
 
 **Pattern:** [Strangler Fig](https://martinfowler.com/bliki/StranglerFigApplication.html) — extract services one seam at a time. The monolith stays running throughout.
 
-**Extraction order** (business priority, not technical risk):
+**Extraction order** (business priority, then technical risk):
 
-1. Customer API
-2. Order Management Service
-3. Invoice/Payment Service
-4. Shipment Tracking
-5. Bank Validation Service
+| # | Service | Tech | Stories |
+|---|---|---|---|
+| 1 | Customer API | Kotlin + Spring Boot + PostgreSQL | US-007, US-008 |
+| 2 | Order Management Service | Kotlin + Spring Boot + PostgreSQL | US-001, US-002, US-003 |
+| 3 | Invoice/Payment Service | Kotlin + Spring Boot + PostgreSQL | US-004, US-005, US-006 |
+| 4 | Shipment Tracking | Kotlin + Spring Boot + PostgreSQL | US-003 (tracking) |
+| 5 | Bank Validation Service | Kotlin + Spring Boot | US-008, US-005 |
+
+**Frontend:** Vue.js 3 replaces PHP page templates incrementally — talks only to the new service APIs.
 
 Each extraction requires: characterization tests pinning current behavior → clean API contract → anti-corruption layer → both monolith and new service green on the same commit.
 
-See `monolith/docs/capabilities.md` for the full decomposition plan and known defects.
+See `monolith/docs/target-architecture.md` for the full target architecture and `monolith/docs/capabilities.md` for the decomposition plan and known defects.
 
 ---
 

@@ -4,7 +4,7 @@
 
 **Scenario:** Code Modernization (Challenge 1 of 5)
 **Goal:** Prove the PHP 5 monolith can be evolved safely using the Strangler Fig pattern — no big-bang rewrite.
-**Active challenges:** The Patient (done), The Stories (done), The Map (next: ADRs + decomposition plan).
+**Active challenges:** The Patient (done), The Stories (done), The Map (done: ADRs + Zielarchitektur), The Pin (next: characterization tests).
 
 ---
 
@@ -13,7 +13,7 @@
 | Path | Purpose | Own CLAUDE.md |
 |---|---|---|
 | `monolith/` | Legacy PHP 5 application — the starting point | Yes → `monolith/CLAUDE.md` |
-| `monolith/docs/` | Capabilities map, ADRs (to be created) | No |
+| `monolith/docs/` | Capabilities map, Zielarchitektur, ADRs | No |
 | `doc/initial context/` | Hackathon scenario descriptions | No |
 | `doc/stories/` | User stories US-001 through US-008 | No |
 | `services/` | Extracted microservices (to be created) | Each gets its own CLAUDE.md |
@@ -73,6 +73,19 @@ Business priority first, then technical risk. Each extraction must leave the mon
 
 ---
 
+## Tech Stack (neue Services)
+
+| Komponente | Technologie |
+|---|---|
+| Backend | Kotlin + Spring Boot 3.x (Gradle Kotlin DSL) |
+| Datenbank | PostgreSQL — jeder Service eigene DB |
+| Frontend | Vue.js 3 |
+| Tests | JUnit 5 + Testcontainers |
+
+**Kein** Node.js, kein PHP, kein `mysql_*` in neuen Services.
+
+---
+
 ## Rules for Claude (Project-Wide)
 
 **Never do:**
@@ -81,6 +94,7 @@ Business priority first, then technical risk. Each extraction must leave the mon
 - Use `mysql_*` or `global $db` in new services
 - Expose monolith DB column names in a new service's public API (anti-corruption layer must exist)
 - Edit `sql/schema.sql` triggers without characterization tests in place first
+- Use Node.js or PHP for new services — Kotlin + Spring Boot only
 
 **Prefer:**
 - Reading `monolith/CLAUDE.md` before touching any monolith code
@@ -90,8 +104,11 @@ Business priority first, then technical risk. Each extraction must leave the mon
 
 ---
 
-## ADRs (to be created in `monolith/docs/`)
+## Architecture Decisions (`monolith/docs/`)
 
-- `ADR-001-strangler-fig-customer-api.md`
-- `ADR-002-anti-corruption-layer.md`
-- `ADR-003-triggers-to-application-code.md`
+| Dokument | Inhalt |
+|---|---|
+| `target-architecture.md` | Zielarchitektur: Services, Tech-Stack, Migrationssequenz |
+| `ADR-001-strangler-fig-customer-api.md` | Warum Customer API zuerst; Dual-Write-Strategie |
+| `ADR-002-anti-corruption-layer.md` | Feldmapping Monolith↔Service; Validierungshoheit |
+| `ADR-003-triggers-to-application-code.md` | Trigger-Migration in App-Code; Bug-Fixe |
